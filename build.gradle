@@ -1,0 +1,178 @@
+// Building
+apply plugin: 'java'
+repositories {
+    mavenCentral()
+}
+// Add Javadoc JAR and sources JAR to artifact
+task javadocJar(type: Jar) {
+    classifier = 'javadoc'
+    from javadoc
+}
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+artifacts {
+    archives javadocJar, sourcesJar
+}
+
+
+// Signing
+apply plugin: 'signing'
+signing {
+    sign configurations.archives
+}
+
+
+// Deploying
+apply plugin: 'maven'
+
+// Configure group ID, artifact ID, and version
+group = 'io.github.cloggo'
+archivesBaseName = "tableauhyperapi-jna"
+version = ''
+
+configurations {  allJars }
+
+// Build, sign, and upload
+
+task discoverAllJars{
+    ext.discoveredFiles = []
+    doLast{
+        file("jars").eachFile{file ->
+            if(file.name.endsWith("jar")){
+                println "found file ${file.name}" 
+                discoveredFiles << file
+                artifacts{
+                    allJars file
+                    archives javadocJar, sourcesJar
+                }   
+            }
+        }   
+    }
+}
+
+// Build, sign, and upload
+uploadArchives {
+    repositories {
+        mavenDeployer {
+
+            // Sign POM
+            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+            // Destination
+
+repository(url: "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/") {
+        authentication(userName: ossrhUsername, password: ossrhPassword)
+      }
+
+      snapshotRepository(url: "https://s01.oss.sonatype.org/content/repositories/snapshots/") {
+        authentication(userName: ossrhUsername, password: ossrhPassword)
+      }
+            // Add required metadata to POM
+            pom.project {
+                name 'Tableau Hyper API'
+                packaging 'jar'
+                description 'Binary Tableau Hyper API'
+                url 'https://github.com/cloggo/hyper-api'
+
+                scm {
+                            connection = "scm:git:git@github.com:cloggo/hyper-api.git"
+                                developerConnection = "scm:git:ssh://github.com/cloggo/hyper-api.git"
+                                url = "https://github.com/cloggo/hyper-api"
+                }
+
+                licenses {
+                    license {
+                        name 'The Apache License, Version 2.0'
+                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id = "ahkdiep"
+                        name = "Aaron Diep"
+                        email = "ahkdiep@gmail.com"
+                        organization 'Covalent'
+                        organizationUrl 'http://covalenthq.com'
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+task configureUploadAllJars{
+    dependsOn discoverAllJars
+    dependsOn sourcesJar
+    dependsOn javadocJar
+    doLast{
+        uploadAllJars {
+           repositories {  
+                mavenDeployer {  
+            // Destination
+            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+ 
+repository(url: "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/") {
+        authentication(userName: ossrhUsername, password: ossrhPassword)
+      }
+
+      snapshotRepository(url: "https://s01.oss.sonatype.org/content/repositories/snapshots/") {
+        authentication(userName: ossrhUsername, password: ossrhPassword)
+      }
+
+
+
+
+                    discoverAllJars.discoveredFiles.each{discoveredFile ->
+                        def filterName = discoveredFile.name - ".jar"
+                        addFilter(filterName) { artifact, file ->
+                            file.name == discoveredFile.name
+                        }
+                        pom(filterName).artifactId = filterName 
+            pom(filterName).project {
+                name 'Tableau Hyper API'
+                packaging 'jar'
+                description 'Binary Tableau Hyper API'
+                url 'https://github.com/cloggo/hyper-api'
+
+                scm {
+                            connection = "scm:git:git@github.com:cloggo/hyper-api.git"
+                                developerConnection = "scm:git:ssh://github.com/cloggo/hyper-api.git"
+                                url = "https://github.com/cloggo/hyper-api"
+                }
+
+                licenses {
+                    license {
+                        name 'The Apache License, Version 2.0'
+                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id = "ahkdiep"
+                        name = "Aaron Diep"
+                        email = "ahkdiep@gmail.com"
+                        organization 'Covalent'
+                        organizationUrl 'http://covalenthq.com'
+                    }
+                }
+            }
+
+                    }
+                }  
+            }  
+        }   
+    }
+}
+
+
+
+uploadAllJars.dependsOn configureUploadAllJars
+uploadAllJars.dependsOn sourcesJar
+uploadAllJars.dependsOn javadocJar

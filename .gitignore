@@ -1,0 +1,4 @@
+secring.kbx
+build/
+.gradle
+jars
